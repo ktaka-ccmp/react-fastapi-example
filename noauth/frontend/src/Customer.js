@@ -38,11 +38,8 @@ const CustomerList = () => {
 	const fetchItems = async () => {
 	    setLoading(true);
 
-	    await axios.get(`${process.env.REACT_APP_API_SERVER}/customer/`, 
-			    {headers: {"Access-Control-Allow-Origin": "*",
-				       mode: "cors",
-				      }}
-			   ).then(res => {
+	    await axios.get(`${process.env.REACT_APP_API_SERVER}/customer/`)
+		.then(res => {
 		    setItems(res.data);
 		    setLoading(false);
 		})
