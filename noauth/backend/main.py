@@ -1,18 +1,9 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from db import Customer, CustomerBase, SessionLocal
-from db import User, UserBase
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Depends, FastAPI
-from fastapi.security import OAuth2PasswordBearer
 
 app = FastAPI()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-@app.get("/items/")
-async def read_items(token: str = Depends(oauth2_scheme)):
-        return {"token": token}
 
 origins = [
     "http://localhost:3000",
@@ -59,37 +50,4 @@ async def delete_customer(customer_id: int, db_session: Session = Depends(get_db
     todo = get_customer(db_session, customer_id)
     db_session.delete(todo)
     db_session.commit()
-
-
-def get_user_by_name(db_session: Session, name: str):
-    return db_session.query(User).filter(User.name==name).first()
-
-def get_user_by_id(db_session: Session, user_id: int):
-    return db_session.query(User).filter(User.id==user_id).first()
-
-@app.get("/user/")
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(User).offset(skip).limit(limit).all()
-        
-@app.get("/user/{name}")
-def read_user_by_name(name: str, db_session: Session = Depends(get_db)):
-    user = get_user_by_name(db_session, name)
-    return user
-
-@app.post("/user/")
-def create_user(user: UserBase, db_session: Session = Depends(get_db)):
-    db_user = User(name=user.name, email=user.email)
-    db_session.add(db_user)
-    db_session.commit()
-    db_session.refresh(db_user)
-    return db_user
-
-@app.delete("/user/{name}")
-async def delete_user(name: str, db_session: Session = Depends(get_db)):
-    user = get_user_by_name(db_session, name)
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username")
-    if user:
-            db_session.delete(user)
-            db_session.commit()
 

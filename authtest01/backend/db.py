@@ -21,10 +21,20 @@ class Customer(Base):
     name = Column('name', String(30))
     email = Column('email', String(254))
 
+class User(Base):
+    __tablename__ = 'user'
+    id = Column('id', Integer, primary_key = True, autoincrement = True)
+    name = Column('name', String(30))
+    email = Column('email', String(254))
+
 # schemas.py
 from pydantic import BaseModel
 
 class CustomerBase(BaseModel):
+    name: str
+    email: str
+
+class UserBase(BaseModel):
     name: str
     email: str
 
