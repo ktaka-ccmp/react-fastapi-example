@@ -11,6 +11,7 @@ fake_users_db = {
         "email": "johndoe@example.com",
         "hashed_password": "fakehashedsecret",
         "disabled": False,
+        "session_id": "dufi8o7uoj",
     },
     "alice": {
         "username": "alice",
@@ -18,42 +19,38 @@ fake_users_db = {
         "email": "alice@example.com",
         "hashed_password": "fakehashedsecret2",
         "disabled": True,
+        "session_id": "e5drftgyhifi8o7uoj",
     },
 }
 
 app = FastAPI()
 
 
-def fake_hash_password(password: str):
-    return "fakehashed" + password
-
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 
 class User(BaseModel):
     username: str
     email: Union[str, None] = None
     full_name: Union[str, None] = None
     disabled: Union[bool, None] = None
-
+    session_id: Union[str, None] = None
 
 class UserInDB(User):
     hashed_password: str
 
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-
+def get_user(db, session_id: str):
+#    print("session_id", session_id)
+    for user in db:
+#        print("sid", db[user]["session_id"])
+        if db[user]["session_id"] == session_id:
+            user_dict = db[user]
+            return UserInDB(**user_dict)
 
 def fake_decode_token(token):
-    # This doesn't provide any security at all
-    # Check the next version
     user = get_user(fake_users_db, token)
+    print("user", user)
+    print("token", token)
     return user
-
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = fake_decode_token(token)
@@ -64,7 +61,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
-
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
 #    if current_user.disabled:
@@ -78,11 +74,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if not user_dict:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     user = UserInDB(**user_dict)
-    hashed_password = fake_hash_password(form_data.password)
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+#    hashed_password = fake_hash_password(form_data.password)
+#    if not hashed_password == user.hashed_password:
+#        raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    return {"access_token": user.username, "token_type": "bearer"}
+    return {"access_token": user.session_id, "token_type": "bearer"}
 
 
 @app.get("/users/me")
