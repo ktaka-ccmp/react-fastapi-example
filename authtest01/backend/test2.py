@@ -1,8 +1,9 @@
-from typing import Union
-
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from typing import Union, Optional
+from fastapi import Depends, FastAPI, HTTPException, status, Response, Request
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, OAuth2
 from pydantic import BaseModel
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+
 
 fake_users_db = {
     "johndoe": {
@@ -23,10 +24,29 @@ fake_users_db = {
     },
 }
 
+class OAuth2Cookie(OAuth2):
+    def __init__(
+        self,
+        tokenUrl: str,
+        scheme_name: str = None,
+        scopes: dict = None,
+        auto_error: bool = True,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
+
+    async def __call__(self, request: Request) -> Optional[str]:
+        session_id: str = request.cookies.get("session_id")
+
+        print("session_id", session_id)
+
+        return session_id
+
 app = FastAPI()
 
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2Cookie(tokenUrl="token")
 
 class User(BaseModel):
     username: str
@@ -69,7 +89,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 
 @app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user_dict = fake_users_db.get(form_data.username)
     if not user_dict:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -77,8 +97,26 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 #    hashed_password = fake_hash_password(form_data.password)
 #    if not hashed_password == user.hashed_password:
 #        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    response.set_cookie(key="session_id", value=user.session_id)
 
     return {"access_token": user.session_id, "token_type": "bearer"}
+
+@app.get("/logout")
+async def logout(response: Response):
+    response.delete_cookie("session_id")
+    return {"cookie": "deleted"}
+
+
+@app.post("/auth")
+async def auth(response: Response, username: str, email: Union[str, None] = None):
+    user_dict = fake_users_db.get(username)
+    if not user_dict:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    user = UserInDB(**user_dict)
+
+    response.set_cookie(key="fakesession", value="fake-cookie-session-value")
+
+    return {"name": user.username, "email": user.email}
 
 
 @app.get("/users/me")
