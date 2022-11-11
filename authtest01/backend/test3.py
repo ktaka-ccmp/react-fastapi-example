@@ -1,9 +1,9 @@
 from typing import Union, Optional
 from fastapi import Depends, FastAPI, HTTPException, status, Response, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, OAuth2
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2
 from pydantic import BaseModel
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
-import uuid
+import uuid, secrets
 
 fake_users_db = {
     "john": {
@@ -55,13 +55,10 @@ class User(BaseModel):
 class UserInDB(User):
     hashed_password: str
 
-class Session(BaseModel):
-    session_id: str
-    username: str
-
 def create_session(user: str):
-    #session_id=str(uuid.uuid4())
-    session_id=uuid.UUID(str(uuid.uuid4())).hex
+    #session_id=uuid.UUID(str(uuid.uuid4())).hex
+    #session_id=str(uuid.uuid4().hex)
+    session_id=secrets.token_urlsafe(32)
     session_cache[session_id]={
         "username": user 
     }
@@ -83,7 +80,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            #headers={"WWW-Authenticate": "Bearer"},
         )
     return user
 
@@ -103,7 +100,6 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     session_id=create_session(user.username)
-    #response.set_cookie(key="session_id", value=session_id)
     response.set_cookie(
                   key="session_id",
                   value=session_id,
@@ -111,7 +107,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
                   max_age=1800,
                   expires=1800,
     )
-    return {"access_token": session_id, "token_type": "bearer"}
+    #return {"access_token": session_id, "token_type": "bearer"}
 
 @app.get("/logout")
 async def logout(response: Response, request: Request):
