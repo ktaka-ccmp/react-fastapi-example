@@ -1,9 +1,10 @@
 from typing import Union, Optional
 from fastapi import Depends, FastAPI, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2
+from fastapi.security.base import SecurityBase
 from pydantic import BaseModel
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
-import uuid, secrets
+import secrets
 
 fake_users_db = {
     "john": {
@@ -17,7 +18,7 @@ fake_users_db = {
         "username": "alice",
         "full_name": "Alice Wonderson",
         "email": "alice@example.com",
-        "hashed_password": "fakehashedsecret2",
+        "hashed_password": "fakehashedsecret",
         "disabled": True,
     },
 }
@@ -40,11 +41,18 @@ class OAuth2Cookie(OAuth2):
 
     async def __call__(self, request: Request) -> Optional[str]:
         session_id: str = request.cookies.get("session_id")
+        if not session_id:
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=HTTP_403_FORBIDDEN, detail="Not authenticated"
+                )
+            else:
+                return None
         return session_id
 
-app = FastAPI()
+oauth2_scheme = OAuth2Cookie(tokenUrl="login")
 
-oauth2_scheme = OAuth2Cookie(tokenUrl="token")
+app = FastAPI()
 
 class User(BaseModel):
     username: str
@@ -56,8 +64,6 @@ class UserInDB(User):
     hashed_password: str
 
 def create_session(user: str):
-    #session_id=uuid.UUID(str(uuid.uuid4())).hex
-    #session_id=str(uuid.uuid4().hex)
     session_id=secrets.token_urlsafe(32)
     session_cache[session_id]={
         "username": user 
@@ -67,10 +73,10 @@ def create_session(user: str):
 def fake_hash_password(password: str):
     return "fakehashed" + password
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    if not token in session_cache:
+async def get_current_user(session_id: str = Depends(oauth2_scheme)):
+    if not session_id in session_cache:
         return None
-    username = session_cache[token]["username"]
+    username = session_cache[session_id]["username"]
 
     if username in fake_users_db:
         user_dict = fake_users_db[username]
@@ -80,16 +86,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-            #headers={"WWW-Authenticate": "Bearer"},
         )
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
-#    if current_user.disabled:
-#        raise HTTPException(status_code=400, detail="Inactive user")
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-@app.post("/token")
+@app.post("/login")
 async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user_dict = fake_users_db.get(form_data.username)
     if not user_dict:
@@ -107,7 +112,6 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
                   max_age=1800,
                   expires=1800,
     )
-    #return {"access_token": session_id, "token_type": "bearer"}
 
 @app.get("/logout")
 async def logout(response: Response, request: Request):
