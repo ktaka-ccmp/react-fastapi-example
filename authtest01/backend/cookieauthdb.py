@@ -148,6 +148,6 @@ async def list_sessions(cs: Session = Depends(get_cache)):
 async def read_users_me(current_user: UserBase = Depends(get_current_active_user)):
     return current_user
 
-@app.get("/user/")
-def read_users(ds: Session = Depends(get_db)):
-    return ds.query(User).offset(0).limit(100).all()
+# @app.get("/user/")
+# def read_users(ds: Session = Depends(get_db)):
+#     return ds.query(User).offset(0).limit(100).all()

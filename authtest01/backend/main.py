@@ -1,18 +1,26 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
-from db import Customer, CustomerBase, SessionLocal
+#from db import Customer, CustomerBase, SessionLocal
+from db import Customer, CustomerBase
 from db import User, UserBase
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI
 from fastapi.security import OAuth2PasswordBearer
 
-app = FastAPI()
+#from cookieauthdb import *
+import cookieauthdb as auth
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+app = auth.app
+get_db = auth.get_db
+get_current_active_user = auth.get_current_active_user
 
-@app.get("/items/")
-async def read_items(token: str = Depends(oauth2_scheme)):
-        return {"token": token}
+# app = FastAPI()
+
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# @app.get("/items/")
+# async def read_items(token: str = Depends(oauth2_scheme)):
+#         return {"token": token}
 
 origins = [
     "http://localhost:3000",
@@ -30,15 +38,15 @@ app.add_middleware(
 def get_customer(db_session: Session, customer_id: int):
     return db_session.query(Customer).filter(Customer.id==customer_id).first()
 
-def get_db():
-    db_session = SessionLocal()
-    try:
-        yield db_session
-    finally:
-        db_session.close()
+# def get_db():
+#     db_session = SessionLocal()
+#     try:
+#         yield db_session
+#     finally:
+#         db_session.close()
 
 @app.get("/customer/")
-def read_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: UserBase = Depends(get_current_active_user)):
     return db.query(Customer).offset(skip).limit(limit).all()
         
 @app.get("/customer/{customer_id}")
@@ -59,7 +67,6 @@ async def delete_customer(customer_id: int, db_session: Session = Depends(get_db
     todo = get_customer(db_session, customer_id)
     db_session.delete(todo)
     db_session.commit()
-
 
 def get_user_by_name(db_session: Session, name: str):
     return db_session.query(User).filter(User.name==name).first()
