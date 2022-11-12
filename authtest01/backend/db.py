@@ -2,30 +2,47 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Boolean
 
-SQLALCHEMY_DATABASE_URI = "sqlite:///./test.db"
+DATA_STORE_URI = "sqlite:///./data.db"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URI, connect_args={"check_same_thread": False}, echo=True
+DataStore = create_engine(
+    DATA_STORE_URI, connect_args={"check_same_thread": False}, echo=True
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionDATA = sessionmaker(autocommit=False, autoflush=False, bind=DataStore)
 
-Base = declarative_base()
+CACHE_STORE_URI = "sqlite:///./cache.db"
+
+CacheStore = create_engine(
+    CACHE_STORE_URI, connect_args={"check_same_thread": False}, echo=True
+)
+SessionCACHE = sessionmaker(autocommit=False, autoflush=False, bind=CacheStore)
+
+DataStoreBase = declarative_base()
+CacheStoreBase = declarative_base()
 
 # models.py
 from sqlalchemy import Boolean, Column, Integer, String
 
-class Customer(Base):
+class Customer(DataStoreBase):
     __tablename__ = 'customer'
     id = Column('id', Integer, primary_key = True, autoincrement = True)
     name = Column('name', String(30))
     email = Column('email', String(254))
 
-class User(Base):
+class User(DataStoreBase):
     __tablename__ = 'user'
     id = Column('id', Integer, primary_key = True, autoincrement = True)
     name = Column('name', String(30))
     email = Column('email', String(254))
+    disabled = Column('disabled', Boolean, default=False)
+
+class Sessions(CacheStoreBase):
+    __tablename__ = 'sessions'
+    id = Column('id', Integer, primary_key = True, autoincrement = True)
+    session_id = Column('session_id', String(64))
+    user_id = Column('user_id', Integer)
+    name = Column('name', String(30))
 
 # schemas.py
 from pydantic import BaseModel
@@ -35,8 +52,20 @@ class CustomerBase(BaseModel):
     email: str
 
 class UserBase(BaseModel):
+    id: int
     name: str
     email: str
+    disabled: bool
+    # class Config:
+    #     orm_mode = True
 
-Base.metadata.create_all(bind=engine)
+# class SessionsBase(BaseModel):
+#     session_id: str
+#     name: str
+#     user_id: int
+#     class Config:
+#         orm_mode = True
+
+DataStoreBase.metadata.create_all(bind=DataStore)
+CacheStoreBase.metadata.create_all(bind=CacheStore)
 
