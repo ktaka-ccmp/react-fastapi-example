@@ -5,23 +5,13 @@ from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 import secrets
 
 from sqlalchemy.orm import Session
-from data.db import User, UserBase, SessionDATA, SessionCACHE, Sessions
+from data.db import User, UserBase, Sessions
+#from data.db import User, UserBase, SessionDATA, SessionCACHE, Sessions
+from data.db import get_db, get_cache
 
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
-def get_db():
-    ds = SessionDATA()
-    try:
-        yield ds
-    finally:
-        ds.close()
-
-def get_cache():
-    cs = SessionCACHE()
-    try:
-        yield cs
-    finally:
-        cs.close()
+from . import oauth2google as google
 
 class OAuth2Cookie(OAuth2):
     def __init__(
@@ -47,7 +37,7 @@ class OAuth2Cookie(OAuth2):
                 return None
         return session_id
 
-oauth2_scheme = OAuth2Cookie(tokenUrl="login")
+oauth2_scheme = OAuth2Cookie(tokenUrl="/api/login2")
 
 router = APIRouter()
 
@@ -109,8 +99,39 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+@router.post("/test")
+async def login(request: Request, ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
+    json = await request.json()
+    body = await request.body()
+    username = await google.authenticate(body, ds)
+    print("username: ", username.name)
+    return json
+
 @router.post("/login")
-async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
+async def login(request: Request, response: Response, ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
+    body = await request.body()
+    user = await google.authenticate(body, ds)
+    if user:
+        user_dict = get_user_by_name(user.name, ds)
+        if not user_dict:
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
+        user = UserBase(**user_dict)
+
+        session_id=create_session(user, cs)
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            max_age=1800,
+            expires=1800,
+        )
+    else:
+        return Response({"Error: Auth failed"})
+
+    return {"Authenticated_as": user.name}
+
+@router.post("/login2")
+async def login2(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
     user_dict = get_user_by_name(form_data.username, ds)
     if not user_dict:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -142,7 +163,7 @@ async def logout(response: Response, request: Request, cs: Session = Depends(get
 async def list_sessions(cs: Session = Depends(get_cache)):
     return cs.query(Sessions).offset(0).limit(100).all()
 
-@router.get("/users/me")
-async def read_users_me(current_user: UserBase = Depends(get_current_active_user)):
-    return current_user
-
+@router.get("/user/me")
+async def read_users_me(user: UserBase = Depends(get_current_active_user)):
+    #return current_user
+    return {"username": user.name, "email": user.email,}

@@ -60,3 +60,17 @@ class UserBase(BaseModel):
 DataStoreBase.metadata.create_all(bind=DataStore)
 CacheStoreBase.metadata.create_all(bind=CacheStore)
 
+def get_db():
+    ds = SessionDATA()
+    try:
+        yield ds
+    finally:
+        ds.close()
+
+def get_cache():
+    cs = SessionCACHE()
+    try:
+        yield cs
+    finally:
+        cs.close()
+

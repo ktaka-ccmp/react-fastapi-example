@@ -40,7 +40,7 @@ const CustomerList = () => {
 
 	    await apiAxios.get(`/api/customer/`)
 		.then(res => {
-		    setItems(res.data.results);
+		    setItems(res.data);
 		    setLoading(false);
 		})
 		.catch(error => {

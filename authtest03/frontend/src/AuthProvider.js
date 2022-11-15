@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
     const getUser = () => {
 	setLoadUser(true);
-	apiAxios.get(`/api/user/`)
+	apiAxios.get(`/api/user/me`)
 	    .then(res => {
 		userRef.current = res.data
 		setLoadUser(false);
