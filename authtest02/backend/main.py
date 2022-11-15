@@ -7,15 +7,18 @@ from customer import customer
 app = FastAPI()
 app.include_router(
     auth.router,
+    prefix="/api",
     tags=["auth"],
 )
 app.include_router(
     customer.router,
+    prefix="/api",
     tags=["customer"],
     dependencies=[Depends(auth.get_current_active_user)],
 )
 app.include_router(
     user.router,
+    prefix="/api",
     tags=["user"],
 )
 
