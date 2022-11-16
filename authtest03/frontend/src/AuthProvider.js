@@ -61,22 +61,13 @@ export const AuthProvider = ({ children }) => {
 	    })
     }
 
-    const [data, setData] = useState(null);
-
     const handleLogout = () => {
-	setData("");
 	userRef.current = null;
 	googleLogout();
 	const res = apiAxios.get(`/api/logout/`)
-	    .catch(error => console.log("Logout failed: ", error))
-	setData(res);
+	      .then(res => navigate(location))
+	      .catch(error => console.log("Logout failed: ", error))
     }
-
-    useEffect(() => {
-	if(data) {
-	    navigate(location);
-	}
-    }, [data])
 
     const value = {
 	onLogin: backendAuth,
