@@ -2,7 +2,6 @@ import { useState, useRef, useMemo, useContext, createContext } from 'react';
 import { Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useGoogleOneTapLogin, GoogleLogin, googleLogout } from '@react-oauth/google';
 import axios from 'axios';
-import { useEffect } from 'react';
 
 export const AuthContext = createContext(null);
 
@@ -64,9 +63,9 @@ export const AuthProvider = ({ children }) => {
     const handleLogout = () => {
 	userRef.current = null;
 	googleLogout();
-	const res = apiAxios.get(`/api/logout/`)
-	      .then(res => navigate(location))
-	      .catch(error => console.log("Logout failed: ", error))
+	apiAxios.get(`/api/logout/`)
+	    .then(res => navigate(location))
+	    .catch(error => console.log("Logout failed: ", error))
     }
 
     const value = {
