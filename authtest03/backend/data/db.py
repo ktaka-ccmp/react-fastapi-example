@@ -48,8 +48,11 @@ class Sessions(CacheStoreBase):
 from pydantic import BaseModel
 
 class CustomerBase(BaseModel):
+    id: int
     name: str
     email: str
+    class Config:
+        orm_mode = True
 
 class UserBase(BaseModel):
     id: int
@@ -74,3 +77,8 @@ def get_cache():
     finally:
         cs.close()
 
+from typing import List, Union
+
+class CustomerList(BaseModel):
+    description: Union[str, None] = None
+    results: Union[List[CustomerBase], None] = None

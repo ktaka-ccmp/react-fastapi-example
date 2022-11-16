@@ -14,7 +14,7 @@ def get_user_by_email(db_session: Session, email: str):
 def get_user_by_id(db_session: Session, user_id: int):
     return db_session.query(User).filter(User.id==user_id).first()
 
-@router.get("/user/")
+@router.get("/users/")
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(User).offset(skip).limit(limit).all()
         

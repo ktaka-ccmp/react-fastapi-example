@@ -170,7 +170,7 @@ async def logout(response: Response, request: Request, cs: Session = Depends(get
 async def list_sessions(cs: Session = Depends(get_cache)):
     return cs.query(Sessions).offset(0).limit(100).all()
 
-@router.get("/user/me")
+@router.get("/user/")
 async def read_users_me(user: UserBase = Depends(get_current_active_user)):
 #async def read_users_me(request: Request):
     #user: UserBase = await get_current_active_user(request)
