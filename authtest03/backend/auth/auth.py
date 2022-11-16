@@ -37,7 +37,7 @@ class OAuth2Cookie(OAuth2):
                 return None
         return session_id
 
-oauth2_scheme = OAuth2Cookie(tokenUrl="/api/login2")
+oauth2_scheme = OAuth2Cookie(tokenUrl="/api/login2", auto_error=False)
 
 router = APIRouter()
 
@@ -76,10 +76,15 @@ def get_user_by_name(name: str, ds: Session):
 # def fake_hash_password(password: str):
 #     return "fakehashed" + password
 
-async def get_current_user(session_id: str = Depends(oauth2_scheme), ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
+async def get_current_user(ds: Session = Depends(get_db), cs: Session = Depends(get_cache), session_id: str = Depends(oauth2_scheme)):
+
+    if not session_id:
+        return None
+
     session = get_session_by_session_id(session_id, cs)
     if not session:
         return None
+
     username = session["name"]
     user_dict = get_user_by_name(username, ds)
     user=UserBase(**user_dict)
@@ -95,6 +100,8 @@ async def get_current_user(session_id: str = Depends(oauth2_scheme), ds: Session
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
+    if not current_user:
+        return None
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -165,5 +172,10 @@ async def list_sessions(cs: Session = Depends(get_cache)):
 
 @router.get("/user/me")
 async def read_users_me(user: UserBase = Depends(get_current_active_user)):
+#async def read_users_me(request: Request):
+    #user: UserBase = await get_current_active_user(request)
     #return current_user
-    return {"username": user.name, "email": user.email,}
+    try:
+        return {"username": user.name, "email": user.email,}
+    except:
+        return None

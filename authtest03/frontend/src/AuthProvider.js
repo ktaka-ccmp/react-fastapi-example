@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useContext, createContext } from 'react';
 import { Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useGoogleOneTapLogin, GoogleLogin, googleLogout } from '@react-oauth/google';
 import axios from 'axios';
+import { useEffect } from 'react';
 
 export const AuthContext = createContext(null);
 
@@ -32,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 	    .then(res => {
 		userRef.current = res.data
 		setLoadUser(false);
-//		console.log("getUser: user:", userRef.current.username)
+		console.log("getUser: user:", userRef.current.username)
 	    })
 	    .catch(error => console.log("getUser faild: ", error.response))
     };
@@ -60,13 +61,22 @@ export const AuthProvider = ({ children }) => {
 	    })
     }
 
+    const [data, setData] = useState(null);
+
     const handleLogout = () => {
+	setData("");
 	userRef.current = null;
 	googleLogout();
-	apiAxios.get(`/api/logout/`)
+	const res = apiAxios.get(`/api/logout/`)
 	    .catch(error => console.log("Logout failed: ", error))
-	navigate(location);
+	setData(res);
     }
+
+    useEffect(() => {
+	if(data) {
+	    navigate(location);
+	}
+    }, [data])
 
     const value = {
 	onLogin: backendAuth,
