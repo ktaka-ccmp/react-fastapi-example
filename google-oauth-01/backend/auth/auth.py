@@ -1,16 +1,12 @@
+import secrets
 from typing import Optional
 from fastapi import Depends, APIRouter, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
-import secrets
-
 from sqlalchemy.orm import Session
 from data.db import User, UserBase, Sessions
-#from data.db import User, UserBase, SessionDATA, SessionCACHE, Sessions
 from data.db import get_db, get_cache
-
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
-
 from . import oauth2google as google
 
 class OAuth2Cookie(OAuth2):
@@ -37,7 +33,7 @@ class OAuth2Cookie(OAuth2):
                 return None
         return session_id
 
-oauth2_scheme = OAuth2Cookie(tokenUrl="/api/login2", auto_error=False)
+oauth2_scheme = OAuth2Cookie(tokenUrl="/api/signin", auto_error=False)
 
 router = APIRouter()
 
@@ -51,11 +47,11 @@ def get_session_by_session_id(session_id: str, cs: Session):
 
 def create_session(user: UserBase, cs: Session):
     session_id=secrets.token_urlsafe(32)
-    session_entry=Sessions(session_id=session_id, user_id=user.id, name=user.name)
     session = get_session_by_session_id(session_id, cs)
     if session:
         raise HTTPException(status_code=400, detail="Duplicate session_id")
     if not session:
+        session_entry=Sessions(session_id=session_id, user_id=user.id, name=user.name)
         cs.add(session_entry)
         cs.commit()
         cs.refresh(session_entry)
@@ -106,14 +102,6 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-@router.post("/test")
-async def login(request: Request, ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
-    json = await request.json()
-    body = await request.body()
-    username = await google.authenticate(body, ds)
-    print("username: ", username.name)
-    return json
-
 @router.post("/login")
 async def login(request: Request, response: Response, ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
     body = await request.body()
@@ -123,8 +111,7 @@ async def login(request: Request, response: Response, ds: Session = Depends(get_
         if not user_dict:
             raise HTTPException(status_code=400, detail="Incorrect username or password")
         user = UserBase(**user_dict)
-
-        session_id=create_session(user, cs)
+        session_id = create_session(user, cs)
         response.set_cookie(
             key="session_id",
             value=session_id,
@@ -134,11 +121,10 @@ async def login(request: Request, response: Response, ds: Session = Depends(get_
         )
     else:
         return Response({"Error: Auth failed"})
-
     return {"Authenticated_as": user.name}
 
-@router.post("/login2")
-async def login2(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
+@router.post("/signin")
+async def signin(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), ds: Session = Depends(get_db), cs: Session = Depends(get_cache)):
     user_dict = get_user_by_name(form_data.username, ds)
     if not user_dict:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -155,6 +141,7 @@ async def login2(response: Response, form_data: OAuth2PasswordRequestForm = Depe
                   max_age=1800,
                   expires=1800,
     )
+    return {"access_token": user.name, "token_type": "bearer"}
 
 @router.get("/logout")
 async def logout(response: Response, request: Request, cs: Session = Depends(get_cache)):
@@ -172,9 +159,6 @@ async def list_sessions(cs: Session = Depends(get_cache)):
 
 @router.get("/user/")
 async def read_users_me(user: UserBase = Depends(get_current_active_user)):
-#async def read_users_me(request: Request):
-    #user: UserBase = await get_current_active_user(request)
-    #return current_user
     try:
         return {"username": user.name, "email": user.email,}
     except:

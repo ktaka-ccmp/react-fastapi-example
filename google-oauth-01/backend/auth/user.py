@@ -17,29 +17,31 @@ def get_user_by_id(db_session: Session, user_id: int):
 @router.get("/users/")
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(User).offset(skip).limit(limit).all()
-        
-#@router.get("/user/{name}")
+
+@router.get("/user/{name}")
 def read_user_by_name(name: str, db_session: Session = Depends(get_db)):
     user = get_user_by_name(db_session, name)
     return user
 
-#@router.post("/user/")
-def create_user(user: UserBase, db_session: Session = Depends(get_db)):
-    db_user = User(name=user.name, email=user.email)
-    user = get_user_by_email(db_session, user.email)
-    if user:
-        raise HTTPException(status_code=400, detail="Email duplicates")
-    if not user:
-        db_session.add(db_user)
+@router.post("/user/")
+async def create_user(user: UserBase, db_session: Session = Depends(get_db)):
+    db_user = get_user_by_email(db_session, user.email)
+    if db_user:
+        return db_user
+    if not db_user:
+        user_model = User(name=user.name, email=user.email)
+        db_session.add(user_model)
         db_session.commit()
-        db_session.refresh(db_user)
-    return db_user
+        db_session.refresh(user_model)
+        db_user = get_user_by_email(db_session, user.email)
+        return db_user
 
-#@router.delete("/user/{name}")
-async def delete_user(name: str, db_session: Session = Depends(get_db)):
+@router.delete("/user/{name}")
+def delete_user(name: str, db_session: Session = Depends(get_db)):
     user = get_user_by_name(db_session, name)
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username")
+        raise HTTPException(status_code=400, detail=f"\'{name}\' does not exist.")
     if user:
             db_session.delete(user)
             db_session.commit()
+    return {"status": f"\'{name}\' has been deleted."}

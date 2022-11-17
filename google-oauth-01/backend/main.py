@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth import auth, user, oauth2google
 from customer import customer
-
 from config import settings
 
 app = FastAPI()
@@ -27,12 +26,6 @@ app.include_router(
     tags=["user"],
 )
 
-app.include_router(
-    oauth2google.router,
-    prefix="/api",
-    tags=["test"],
-)
-
 origins = [
     "http://localhost:3000",
     "http://v200.h.ccmp.jp:4000",
@@ -46,7 +39,7 @@ app.add_middleware(
         allow_headers=["*"],
     )
 
-@app.get("/env/")
+@app.get("/env/", tags=["test"])
 async def env():
     print("settings: ", settings)
     return {
