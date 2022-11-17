@@ -34,7 +34,10 @@ export const AuthProvider = ({ children }) => {
 		setLoadUser(false);
 		console.log("getUser: user:", userRef.current.username)
 	    })
-	    .catch(error => console.log("getUser faild: ", error.response))
+	    .catch(error => {
+		console.log("getUser faild: ", error.response)
+		setLoadUser(false);
+	    })
     };
 
     useMemo(() => {
